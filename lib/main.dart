@@ -3,6 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart' as L;
 import 'package:google_map_polyline/google_map_polyline.dart';
 import 'package:permission/permission.dart';
+import 'dart:math';
 
 void main() => runApp(MyApp());
 
@@ -27,9 +28,11 @@ class MapSample extends StatefulWidget {
 
 class MyMapState extends State<MapSample> {
   GoogleMapController mapController;
-
-  LatLng _center =  LatLng(37.4219983,-122.084);
-  TextEditingController _startPoint = new TextEditingController();
+  var location = new L.Location();
+  Map<MarkerId, Marker> markers = <MarkerId, Marker>{}; // CLASS MEMBER, MAP OF MARKS
+  var markersID = 0;
+  LatLng myLocation =  LatLng(37.4219983,-122.084);
+  TextEditingController _distance = new TextEditingController();
   TextEditingController _endPoint = new TextEditingController();
 
   Set<Polyline> polyline = {};
@@ -59,27 +62,27 @@ class MyMapState extends State<MapSample> {
     
 
   }
-  void getSomePoints() async{
+  void getSomePoints(range,origen, destination) async{
     var permissions = await Permission.getPermissionsStatus([PermissionName.Location]);
     if(permissions[0].permissionStatus == PermissionStatus.notAgain){
       var askpermissions = await Permission.requestPermissions([PermissionName.Location]);
     }else{
-
-//      getCoordinatesWithLocation
-      routeCoords= await googleMapPolyline.getPolylineCoordinatesWithAddress(
-          origin: '1600 Amphitheatre Pkwy, Mountain View, CA 94043',
-          destination: '1401 N Shoreline Blvd, Mountain View, CA 94043',
-          mode: RouteMode.driving);
-      print(routeCoords.length);
-      print(routeCoords);
-      print("\t  the size of the lines");
-
+      List<LatLng> route;
+       await googleMapPolyline.getCoordinatesWithLocation(
+          origin: origen,
+          destination: destination,
+          mode: RouteMode.driving
+       ).then((onValue) {
+            print("the coordiates");
+            routeCoords= onValue;
+            print(routeCoords);
+      });
 
     }
 
     setState(() {
       polyline.add(Polyline(
-          polylineId: PolylineId('route1'),
+          polylineId: PolylineId('route'+ range.toString()),
           visible: true,
           points: routeCoords,
           width: 4,
@@ -90,12 +93,47 @@ class MyMapState extends State<MapSample> {
 
   }
 
+  void setPolyLines(totalMiles){
 
+    double segment = totalMiles/4;
+    double change_long =change_in_longitude(segment);
+    double change_lat = change_in_latitude(segment);
+    for( var i = 0 ; i <= 4; i++ ) {
+      if(i == 0){
+        getSomePoints(i, myLocation, LatLng(myLocation.latitude,myLocation.longitude+change_long ));
+      }if(i == 1){
+        getSomePoints(i,  LatLng(myLocation.latitude,myLocation.longitude+change_long ), LatLng(myLocation.latitude+change_lat,myLocation.longitude+change_long ));
+      }if(i == 3){
+        getSomePoints(i, LatLng(myLocation.latitude+change_lat,myLocation.longitude+change_long ), LatLng(myLocation.latitude+change_lat,myLocation.longitude ));
+      }if(i == 4){
+        getSomePoints(i, LatLng(myLocation.latitude+change_lat,myLocation.longitude ), myLocation);
+      }
+
+
+      
+    }
+
+  }
+//  return going up north
+  double change_in_latitude(miles){
+    double earth_radius = 3960.0;
+    double radians_to_degrees = 180.0/pi;
+//    "Given a distance north, return the change in latitude."
+    return  (miles/earth_radius)*radians_to_degrees;
+  }
+//returns going west
+  double change_in_longitude(miles){
+    double earth_radius = 3960.0;
+    double degrees_to_radians = pi/180.0;
+    double radians_to_degrees = 180.0/pi;
+    double r = earth_radius*cos(myLocation.longitude*degrees_to_radians);
+    return (miles/r)*radians_to_degrees;
+  }
 
   void _getLocation() async {
-    var location = new L.Location();
     try {
       await location.getLocation().then((onValue) {
+        myLocation = LatLng(onValue.latitude, onValue.longitude);
         mapController.animateCamera(CameraUpdate.newCameraPosition(
           CameraPosition(
             bearing: 0,
@@ -104,7 +142,21 @@ class MyMapState extends State<MapSample> {
           ),
         ));
         print(onValue.latitude.toString() + "," + onValue.longitude.toString());
+        final MarkerId markerIdT = MarkerId(markersID.toString());
+        final Marker marker = Marker(
+          markerId: markerIdT,
+          position: LatLng(
+            onValue.latitude,
+            onValue.longitude,
+          ),
+          infoWindow: InfoWindow(title: "My Location", snippet: '*'),
+        );
+        setState(() {
+          markers[markerIdT] = marker;
+        });
+
       });
+
     } catch (e) {
       print(e);
       if (e.code == 'PERMISSION_DENIED') {
@@ -140,9 +192,10 @@ class MyMapState extends State<MapSample> {
                   polylines: polyline,
                   onMapCreated: _onMapCreated,
                   initialCameraPosition: CameraPosition(
-                    target: _center,
+                    target: myLocation,
                     zoom: 11.0,
                   ),
+                    markers: Set<Marker>.of(markers.values),
                 ),
 
               ),
@@ -158,35 +211,35 @@ class MyMapState extends State<MapSample> {
                       ),
                   ),
                   Flexible(
-                      flex: 2,
+                      flex: 4,
                       child: Container(
                         margin: const EdgeInsets.only(left: 20.0, right: 20.0),
                         child: TextField(
-                          controller: _startPoint ,
+                          controller: _distance ,
                           obscureText: false,
                             decoration: InputDecoration(
                               border: OutlineInputBorder(),
-                              labelText: 'Start Point',
+                              labelText: 'Distance',
                             ),
                           ),
                       ),
                   ),
 
 
-                  Flexible(
-                    flex: 2,
-                    child: Container(
-                      margin: const EdgeInsets.only(left: 20.0, right: 20.0),
-                      child: TextField(
-                        controller: _endPoint ,
-                        obscureText: false,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(),
-                          labelText: 'End Point',
-                        ),
-                      ),
-                    ),
-                  ),
+//                  Flexible(
+//                    flex: 2,
+//                    child: Container(
+//                      margin: const EdgeInsets.only(left: 20.0, right: 20.0),
+//                      child: TextField(
+//                        controller: _endPoint ,
+//                        obscureText: false,
+//                        decoration: InputDecoration(
+//                          border: OutlineInputBorder(),
+//                          labelText: 'End Point',
+//                        ),
+//                      ),
+//                    ),
+//                  ),
                 ]),
           ),
 
@@ -207,8 +260,11 @@ class MyMapState extends State<MapSample> {
                       padding: EdgeInsets.all(8.0),
                       splashColor: Colors.blueAccent,
                       onPressed: () {
-                        getSomePoints();
-
+                        setPolyLines( double.parse( _distance.text));
+                        var change =change_in_latitude(10.0);
+                        print(change+myLocation.latitude);
+                        var change_long = change_in_longitude(10.0);
+                        print(change_long+myLocation.longitude);
                       },
                       child: Text(
                         "Find me a route",
