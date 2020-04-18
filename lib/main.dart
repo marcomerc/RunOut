@@ -1,13 +1,14 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart' as L;
 import 'package:google_map_polyline/google_map_polyline.dart';
 import 'package:permission/permission.dart';
 import 'dart:math';
+import 'TextBox.dart';
+import 'Settings.dart';
+import 'models/pin_pill_info.dart';
 
 void main() => runApp(MyApp());
-
 
 enum WhyFather { harder, smarter, selfStarter, tradingCenter}
 
@@ -15,7 +16,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Google Maps Demo',
+      debugShowCheckedModeBanner: false,
+      title: 'RunOut',
       home: MapSample(),
     );
   }
@@ -30,8 +32,11 @@ class MapSample extends StatefulWidget {
 
 class MyMapState extends State<MapSample> {
   GoogleMapController mapController;
+
   var location = new L.Location();
   Map<MarkerId, Marker> markers = <MarkerId, Marker>{}; // CLASS MEMBER, MAP OF MARKS
+  var markersID = 0;
+
   bool typing = false;
   static TextEditingController _distance = new TextEditingController();
   TextBox distance = new TextBox(_distance);
@@ -42,12 +47,15 @@ class MyMapState extends State<MapSample> {
 
   Set<Polyline> polyline = {};
   List<LatLng> routeCoords;
-  List<bool> isSelected;
+  List<bool> _selectionStartPoint;
+  List<bool> _selectionKlMi;
 
   @override
   void initState() {
     // TODO: implement initState
-    isSelected = [true, false];
+    _selectionKlMi = [true, false];
+    _selectionStartPoint = [true, false, false, false];
+
     _getLocation();
     super.initState();
 
@@ -59,6 +67,7 @@ class MyMapState extends State<MapSample> {
       await location.getLocation().then((onValue) {
         myLocation = LatLng(onValue.latitude, onValue.longitude);
         print(onValue.latitude.toString() + "," + onValue.longitude.toString());
+
       });
     } catch (e) {
       print(e);
@@ -72,17 +81,10 @@ class MyMapState extends State<MapSample> {
 
 
   void _onMapCreated(GoogleMapController controller) {
+    controller.setMapStyle(Utils.mapStyles);
 
     setState(() {
       mapController = controller;
-//      polyline.add(Polyline(
-//          polylineId: PolylineId('route1'),
-//          visible: true,
-//          points: routeCoords,
-//          width: 4,
-//          color: Colors.blue,
-//          startCap: Cap.roundCap,
-//          endCap: Cap.buttCap));
     }
     );
 
@@ -124,7 +126,19 @@ class MyMapState extends State<MapSample> {
   }
 
   void setPolyLines(totalMiles){
-
+    _getLocation();
+    final MarkerId markerIdT = MarkerId(markersID.toString());
+    final Marker marker = Marker(
+      markerId: markerIdT,
+      position: LatLng(
+        myLocation.latitude,
+        myLocation.longitude,
+      ),
+      infoWindow: InfoWindow(title: "My Location", snippet: '*'),
+    );
+    setState(() {
+      markers[markerIdT] = marker;
+    });
     double segment = totalMiles/4;
     double change_long =change_in_longitude(segment);
     double change_lat = change_in_latitude(segment);
@@ -174,60 +188,7 @@ class MyMapState extends State<MapSample> {
     }
   }
 
-  void _pushSave(){
-    Navigator.of(context).push(
-        new MaterialPageRoute(builder: (context) {
-          return new Scaffold(
-              appBar: AppBar(
-                title: new Text("Settings"),
 
-              ),
-              body:
-
-              Column(
-                  children: <Widget>[
-
-                    ToggleButtons(
-                      borderColor: Colors.black,
-                      fillColor: Colors.grey,
-                      borderWidth: 2,
-                      selectedBorderColor: Colors.black,
-                      selectedColor: Colors.white,
-                      borderRadius: BorderRadius.circular(0),
-                      children: <Widget>[
-                        Text(
-                          'Open 24 Hours',
-                          style: TextStyle(fontSize: 16),
-                        ),
-
-                        Padding(
-                          padding: const EdgeInsets.all(1.0),
-                          child: Text(
-                            'Custom Hours',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ],
-                      onPressed: (int index) {
-                        setState(() {
-                          for (int i = 0; i < isSelected.length; i++) {
-                            isSelected[i] = i == index;
-                          }
-                        });
-                      },
-                      isSelected: isSelected,
-                    ),
-
-
-
-                  ])
-          );
-        })
-
-
-    );
-
-  }
 
   void createPolyLines(miles){
     print("creating the lines");
@@ -256,12 +217,17 @@ class MyMapState extends State<MapSample> {
                   });
                   if(typing == false){
                     setPolyLines( double.parse( _distance.text));
-
                   }
                   },
               ),
               actions: <Widget>[
-                new IconButton(icon: Icon(Icons.settings), onPressed: _pushSave),
+//                new IconButton(icon: Icon(Icons.settings), onPressed: _pushSave),
+                new IconButton(icon: Icon(Icons.settings), onPressed: (){
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => Settings(_selectionKlMi,_selectionStartPoint)),
+                  );
+                }),
               ],
             ),
 
@@ -269,38 +235,6 @@ class MyMapState extends State<MapSample> {
 
             Column(
                 children: <Widget>[
-//
-//
-//              ToggleButtons(
-//                borderColor: Colors.black,
-//                fillColor: Colors.grey,
-//                borderWidth: 2,
-//                selectedBorderColor: Colors.black,
-//                selectedColor: Colors.white,
-//                borderRadius: BorderRadius.circular(0),
-//                children: <Widget>[
-//                  Text(
-//                    'Open 24 Hours',
-//                    style: TextStyle(fontSize: 16),
-//                  ),
-//
-//                  Padding(
-//                    padding: const EdgeInsets.all(1.0),
-//                    child: Text(
-//                      'Custom Hours',
-//                      style: TextStyle(fontSize: 16),
-//                    ),
-//                  ),
-//                ],
-//                onPressed: (int index) {
-//                  setState(() {
-//                    for (int i = 0; i < isSelected.length; i++) {
-//                      isSelected[i] = i == index;
-//                    }
-//                  });
-//                },
-//                isSelected: isSelected,
-//              ),
 
 
                   Flexible(
@@ -317,6 +251,27 @@ class MyMapState extends State<MapSample> {
                     ),
 
                   ),
+
+            FlatButton(
+
+                color: Colors.blue,
+                textColor: Colors.white,
+                disabledColor: Colors.grey,
+                disabledTextColor: Colors.black,
+                padding: EdgeInsets.all(8.0),
+                splashColor: Colors.blueAccent,
+                onPressed: () {
+                  print("kilo meters and miles");
+                  print(_selectionKlMi);
+                  print("Starting point");
+                  print(_selectionStartPoint);
+                },
+                child: Text(
+                  "Find me a route",
+                  style: TextStyle(fontSize: 20.0),
+                ),
+              )
+
         ])
         )
     );
@@ -325,30 +280,170 @@ class MyMapState extends State<MapSample> {
 
 
 
-
-
-
-class TextBox extends StatelessWidget {
-  TextEditingController _text;
-
-  TextBox(TextEditingController distance){
-    _text=distance;
-
+class Utils {
+  static String mapStyles = '''[
+  {
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#f5f5f5"
+      }
+    ]
+  },
+  {
+    "elementType": "labels.icon",
+    "stylers": [
+      {
+        "visibility": "off"
+      }
+    ]
+  },
+  {
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#616161"
+      }
+    ]
+  },
+  {
+    "elementType": "labels.text.stroke",
+    "stylers": [
+      {
+        "color": "#f5f5f5"
+      }
+    ]
+  },
+  {
+    "featureType": "administrative.land_parcel",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#bdbdbd"
+      }
+    ]
+  },
+  {
+    "featureType": "poi",
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#eeeeee"
+      }
+    ]
+  },
+  {
+    "featureType": "poi",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#757575"
+      }
+    ]
+  },
+  {
+    "featureType": "poi.park",
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#e5e5e5"
+      }
+    ]
+  },
+  {
+    "featureType": "poi.park",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#9e9e9e"
+      }
+    ]
+  },
+  {
+    "featureType": "road",
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#ffffff"
+      }
+    ]
+  },
+  {
+    "featureType": "road.arterial",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#757575"
+      }
+    ]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#dadada"
+      }
+    ]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#616161"
+      }
+    ]
+  },
+  {
+    "featureType": "road.local",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#9e9e9e"
+      }
+    ]
+  },
+  {
+    "featureType": "transit.line",
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#e5e5e5"
+      }
+    ]
+  },
+  {
+    "featureType": "transit.station",
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#eeeeee"
+      }
+    ]
+  },
+  {
+    "featureType": "water",
+    "elementType": "geometry",
+    "stylers": [
+      {
+        "color": "#c9c9c9"
+      }
+    ]
+  },
+  {
+    "featureType": "water",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      {
+        "color": "#9e9e9e"
+      }
+    ]
   }
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      alignment: Alignment.centerLeft,
-      color: Colors.white,
-      child: TextField(
-        controller: _text,
-        decoration:
-        InputDecoration(border: InputBorder.none, hintText: 'Distance'),
-      ),
-    );
-  }
+]''';
 }
+
+
+
 
 
