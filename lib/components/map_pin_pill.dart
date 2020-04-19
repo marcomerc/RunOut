@@ -21,7 +21,7 @@ class MapPinPillComponentState extends State<MapPinPillComponent> {
       bottom: widget.pinPillPosition,
       right: 0,
       left: 0,
-      duration: Duration(milliseconds: 200),
+      duration: Duration(milliseconds: 800),
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
@@ -50,9 +50,7 @@ class MapPinPillComponentState extends State<MapPinPillComponent> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
-                      Text(widget.currentlySelectedPin.locationName, style: TextStyle(color: widget.currentlySelectedPin.labelColor)),
-                      Text('Latitude: ${widget.currentlySelectedPin.location.latitude.toString()}', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                      Text('Longitude: ${widget.currentlySelectedPin.location.longitude.toString()}', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text('Distance: ' + widget.currentlySelectedPin.locationName , style: TextStyle(fontSize: 25, color: Colors.grey)),
                     ],
                   ),
                 ),

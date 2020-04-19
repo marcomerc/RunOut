@@ -40,23 +40,26 @@ class SettingState extends State<Settings> {
       Center(
         child: Column(
           children: <Widget>[
+            Text("Select the Metic of distance \n"),
+
             ToggleButtons(
-              borderColor: Colors.black,
-              fillColor: Colors.lightBlue[200],
+              borderColor: Colors.blue,
+              fillColor: Colors.blue,
               borderWidth: 2,
-              selectedBorderColor: Colors.white,
-              selectedColor: Colors.blueAccent,
-              borderRadius: BorderRadius.circular(0),
+              selectedBorderColor: Colors.blue,
+              selectedColor: Colors.black,
+              borderRadius: BorderRadius.circular(16),
               children: <Widget>[
+
                 Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(2.0),
                   child: Text(
                     'Kilometers',
                     style: TextStyle(fontSize: 16),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(2.0),
                   child: Text(
                     'Miles',
                     style: TextStyle(fontSize: 16),
@@ -74,14 +77,14 @@ class SettingState extends State<Settings> {
                 });
               },
             ),
-              Text("Enter the direction you would like to create a route\n"),
+              Text("Select the direction you would like to create a route\n"),
             ToggleButtons(
-              borderColor: Colors.black,
-              fillColor: Colors.grey,
+              borderColor: Colors.blue,
+              fillColor: Colors.blue,
               borderWidth: 2,
-              selectedBorderColor: Colors.black,
-              selectedColor: Colors.white,
-              borderRadius: BorderRadius.circular(0),
+              selectedBorderColor: Colors.blue,
+              selectedColor: Colors.black,
+              borderRadius: BorderRadius.circular(16),
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.all(2.0),
@@ -93,7 +96,7 @@ class SettingState extends State<Settings> {
                 Padding(
                   padding: const EdgeInsets.all(2.0),
                   child: Text(
-                    'Nothern East',
+                    'South West',
                     style: TextStyle(fontSize: 8),
                   ),
                 ),
@@ -108,7 +111,7 @@ class SettingState extends State<Settings> {
                 Padding(
                   padding: const EdgeInsets.all(2.0),
                   child: Text(
-                    'South West',
+                    'North West',
                     style: TextStyle(fontSize: 8),
                   ),
                 ),

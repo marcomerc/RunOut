@@ -7,6 +7,8 @@ import 'dart:math';
 import 'TextBox.dart';
 import 'Settings.dart';
 import 'models/pin_pill_info.dart';
+import 'components/map_pin_pill.dart';
+import 'package:string_validator/string_validator.dart';
 
 void main() => runApp(MyApp());
 
@@ -25,6 +27,7 @@ class MyApp extends StatelessWidget {
 
 
 
+
 class MapSample extends StatefulWidget {
   @override
   State<MapSample> createState() => MyMapState();
@@ -32,7 +35,6 @@ class MapSample extends StatefulWidget {
 
 class MyMapState extends State<MapSample> {
   GoogleMapController mapController;
-
   var location = new L.Location();
   Map<MarkerId, Marker> markers = <MarkerId, Marker>{}; // CLASS MEMBER, MAP OF MARKS
   var markersID = 0;
@@ -40,15 +42,21 @@ class MyMapState extends State<MapSample> {
   bool typing = false;
   static TextEditingController _distance = new TextEditingController();
   TextBox distance = new TextBox(_distance);
+  double _pathDistance = 0;
 
 
   static LatLng myLocation =  LatLng(39.8283,-98.5795);
-
+  PinInformation currentlySelectedPin = PinInformation(pinPath: '', avatarPath: '', location: LatLng(0, 0), locationName: '', labelColor: Colors.grey);
+  PinInformation sourcePinInfo;
+  PinInformation destinationPinInfo;
 
   Set<Polyline> polyline = {};
   List<LatLng> routeCoords;
+  GoogleMapPolyline googleMapPolyline = new GoogleMapPolyline(apiKey: "AIzaSyDFphgQHYwYhst9ZGNfkct-5ZAxF6GWQdI");
   List<bool> _selectionStartPoint;
   List<bool> _selectionKlMi;
+  double pinPillPosition = -100;
+
 
   @override
   void initState() {
@@ -94,7 +102,20 @@ class MyMapState extends State<MapSample> {
 
 
 
-  void getSomePoints(range,origen, destination) async{
+  double distanceRoute(start,finish){
+    double latDis = finish.latitude - start.latitude;
+    double lonDis = finish.longitude - start.longitude;
+
+    double R = 3960.0;
+    double a = pow(sin( (   ( ( latDis*pi)/180 ) )/2),2)+ cos(start.latitude) * cos(finish.latitude) * pow(sin(  ( ( lonDis*pi)/180 ) /2),2);
+    double c = 2 * atan2( sqrt(a), sqrt(1-a) );
+    double d = R * c ;
+    return d;
+
+
+  }
+  
+  Future getSomePoints(range,origen, destination) async{
     var permissions = await Permission.getPermissionsStatus([PermissionName.Location]);
     if(permissions[0].permissionStatus == PermissionStatus.notAgain){
       var askpermissions = await Permission.requestPermissions([PermissionName.Location]);
@@ -105,14 +126,30 @@ class MyMapState extends State<MapSample> {
           destination: destination,
           mode: RouteMode.walking
       ).then((onValue) {
-        print("the coordiates");
+//        print("the coordiates");
         routeCoords= onValue;
-        print(routeCoords);
+//        print(routeCoords);
+        for( var i = 0 ; i < routeCoords.length-1; i++ ) {
+          _pathDistance=_pathDistance+distanceRoute(routeCoords[i],routeCoords[i+1]);
+        }
+        return _pathDistance;
+
+
       });
 
     }
+//    for( var i = 0 ; i < routeCoords.length-1; i++ ) {
+//      _pathDistance=_pathDistance+distanceRoute(routeCoords[i],routeCoords[i+1]);
+//    }
+//    print("number of " + _pathDistance.toString());
+
+    /// change this to add the distance
+//    currentlySelectedPin = sourcePinInfo;
+//    pinPillPosition = 0;
 
     setState(() {
+
+
       polyline.add(Polyline(
           polylineId: PolylineId('route'+ range.toString()),
           visible: true,
@@ -125,38 +162,65 @@ class MyMapState extends State<MapSample> {
 
   }
 
-  void setPolyLines(totalMiles){
+  void setPolyLines(totalMiles) async{
+    if (_selectionKlMi[0] == true){
+      totalMiles = totalMiles*00.621371;
+    }
     _getLocation();
-    final MarkerId markerIdT = MarkerId(markersID.toString());
-    final Marker marker = Marker(
-      markerId: markerIdT,
-      position: LatLng(
-        myLocation.latitude,
-        myLocation.longitude,
-      ),
-      infoWindow: InfoWindow(title: "My Location", snippet: '*'),
+
+    sourcePinInfo = PinInformation(
+        locationName: "Start Location",
+        location: myLocation,
+        pinPath: "assets/driving_pin.png",
+        avatarPath: "assets/friend1.jpg",
+        labelColor: Colors.blueAccent
     );
+
     setState(() {
-      markers[markerIdT] = marker;
+
+
+//      markers[MarkerId(markersID.toString())] = marker;
     });
     double segment = totalMiles/4;
     double change_long =change_in_longitude(segment);
     double change_lat = change_in_latitude(segment);
-    print("change latitude " + change_lat.toString());
-    print("change long " + change_long.toString());
 
-    for( var i = 0 ; i <= 4; i++ ) {
-      if(i == 0){
-        getSomePoints(i, myLocation, LatLng(myLocation.latitude,myLocation.longitude+change_long ));
-      }if(i == 1){
-        getSomePoints(i,  LatLng(myLocation.latitude,myLocation.longitude+change_long ), LatLng(myLocation.latitude+change_lat,myLocation.longitude+change_long ));
-      }if(i == 3){
-        getSomePoints(i, LatLng(myLocation.latitude+change_lat,myLocation.longitude+change_long ), LatLng(myLocation.latitude+change_lat,myLocation.longitude ));
-      }if(i == 4){
-        getSomePoints(i, LatLng(myLocation.latitude+change_lat,myLocation.longitude ), myLocation);
-      }
+    if(_selectionStartPoint[1] == true ){
+      change_lat= change_lat*-1;
+    }else if (_selectionStartPoint[2] == true){
+      change_lat= change_lat*-1;
+
+      change_long=change_long * -1;
+    }else if (_selectionStartPoint[3] == true){
+      change_long=change_long * -1;
+
     }
 
+    var futures = List<Future>();
+    _pathDistance = 0;
+    for( var i = 0 ; i <= 4; i++ ) {
+      if(i == 0){
+        futures.add(getSomePoints(i, myLocation, LatLng(myLocation.latitude,myLocation.longitude+change_long )) );
+      }if(i == 1){
+        futures.add(getSomePoints(i,  LatLng(myLocation.latitude,myLocation.longitude+change_long ), LatLng(myLocation.latitude+change_lat,myLocation.longitude+change_long )));
+      }if(i == 3){
+        futures.add(getSomePoints(i, LatLng(myLocation.latitude+change_lat,myLocation.longitude+change_long ), LatLng(myLocation.latitude+change_lat,myLocation.longitude )));
+      }if(i == 4){
+        futures.add(getSomePoints(i, LatLng(myLocation.latitude+change_lat,myLocation.longitude ), myLocation));
+      }
+    }
+    await Future.wait(futures);
+
+
+//   use _pathDistance to  implemen use set state into the notification.
+    var typeMetric  = " Mi";
+    if (_selectionKlMi[0] == true){
+      typeMetric = "Km";
+    }
+    setState(() {
+      currentlySelectedPin = PinInformation(pinPath: '', avatarPath: '', location: LatLng(0, 0), locationName: _pathDistance.toStringAsFixed(1)+typeMetric, labelColor: Colors.grey);
+
+    });
   }
 //  return going up north
   double change_in_latitude(miles){
@@ -178,7 +242,6 @@ class MyMapState extends State<MapSample> {
     try {
       await location.getLocation().then((onValue) {
         myLocation = LatLng(onValue.latitude, onValue.longitude);
-        print(onValue.latitude.toString() + "," + onValue.longitude.toString());
       });
     } catch (e) {
       print(e);
@@ -189,94 +252,103 @@ class MyMapState extends State<MapSample> {
   }
 
 
-
-  void createPolyLines(miles){
-    print("creating the lines");
-    setPolyLines(3);
-  }
-
   @override
   Widget build(BuildContext context) {
 
-    return MaterialApp(
-        home:
+    return
 
-        Scaffold(
+
+
+      MaterialApp(
+          home:
+
+          Scaffold(
 //          appBar: AppBar(
 //            title: Text('Runout'),
 //            backgroundColor: Colors.green[700],
 //          ),
-            appBar: AppBar(
-              title: typing ? distance : Text("BikeOut"),
-              leading: IconButton(
-                icon: Icon(typing ? Icons.done : Icons.search),
-                onPressed: () {
+              appBar: AppBar(
+                title: typing ? distance : Text("BikeOut"),
+                leading: IconButton(
+                  icon: Icon(typing ? Icons.done : Icons.search),
+                  onPressed: () {
+                    setState(() {
+
+//                      currentlySelectedPin= PinInformation(pinPath: '', avatarPath: '', location: LatLng(0, 0), locationName: '', labelColor: Colors.grey);
+
+
+                      markers.clear();
+                      polyline.clear();
+                      typing = !typing;
+                    });
+                    if(typing == false){
+                        if (_distance.text !=  ""  && isNumeric(_distance.text)  ){
+
+                          setPolyLines( double.parse( _distance.text));
+                          pinPillPosition = 0;
+                        }else if ( _distance.text ==  "" || !isNumeric(_distance.text) ){
+                            pinPillPosition = -100;
+
+                        }
+                    }
                   setState(() {
-                    polyline.clear();
-                    typing = !typing;
-                  });
-                  if(typing == false){
-                    setPolyLines( double.parse( _distance.text));
-                  }
+
+                    });
                   },
-              ),
-              actions: <Widget>[
+                ),
+                actions: <Widget>[
 //                new IconButton(icon: Icon(Icons.settings), onPressed: _pushSave),
-                new IconButton(icon: Icon(Icons.settings), onPressed: (){
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => Settings(_selectionKlMi,_selectionStartPoint)),
-                  );
-                }),
-              ],
-            ),
+                  new IconButton(icon: Icon(Icons.settings), onPressed: (){
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => Settings(_selectionKlMi,_selectionStartPoint)),
+                    );
+                  }),
+                ],
+              ),
 
-            body:
-
-            Column(
-                children: <Widget>[
+              body:
 
 
-                  Flexible(
-                    child:
-                    GoogleMap(
-                        myLocationButtonEnabled: true,
-                        myLocationEnabled: true,
-                        polylines: polyline,
-                        onMapCreated: _onMapCreated,
-                        initialCameraPosition: CameraPosition(
-                          target: myLocation,
-                          zoom: 2.0,
-                        )
+              Stack(
+                  children: <Widget>[
+                      GoogleMap(
+                          myLocationButtonEnabled: true,
+                          myLocationEnabled: true,
+                          polylines: polyline,
+                          markers:  Set<Marker>.of(markers.values),
+                          onMapCreated: _onMapCreated,
+                          initialCameraPosition: CameraPosition(
+                            target: myLocation,
+                            zoom: 2.0,
+                          )
+                      ),
+
+
+
+                    MapPinPillComponent(
+                        pinPillPosition: pinPillPosition,
+                        currentlySelectedPin: currentlySelectedPin
                     ),
 
-                  ),
+                  ])
+          )
+      );
 
-            FlatButton(
-
-                color: Colors.blue,
-                textColor: Colors.white,
-                disabledColor: Colors.grey,
-                disabledTextColor: Colors.black,
-                padding: EdgeInsets.all(8.0),
-                splashColor: Colors.blueAccent,
-                onPressed: () {
-                  print("kilo meters and miles");
-                  print(_selectionKlMi);
-                  print("Starting point");
-                  print(_selectionStartPoint);
-                },
-                child: Text(
-                  "Find me a route",
-                  style: TextStyle(fontSize: 20.0),
-                ),
-              )
-
-        ])
-        )
-    );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
